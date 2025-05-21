@@ -1,128 +1,92 @@
-import mysql.connector
-import uuid
 import csv
-import logging
-import sys
+import uuid
+import mysql.connector
+from mysql.connector import errorcode
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Database connection details (Move to a config file or environment variables for production)
-DB_CONFIG = {
-    'user': 'root',  # Or your MySQL username
-    'password': 'your_mysql_password',  # Or your MySQL password
-    'host': 'localhost',  # Or your MySQL host
-    # Note:  We don't include 'database' here initially, as we might create it.
-}
-
-CSV_FILE = 'user_data.csv'
-DATABASE_NAME = 'ALX_prodev'
-TABLE_NAME = 'user_data'
-
-
+#connecting to DB
 def connect_db():
-    """
-    Connects to the MySQL database server.
-
-    Returns:
-        mysql.connector.connection_cext.CMySQLConnection: A connection object on success, None on failure.
-    """
-    try:
-        connection = mysql.connector.connect(**DB_CONFIG)
-        logging.info("Successfully connected to the MySQL server.")
-        return connection
-    except mysql.connector.Error as err:
-        logging.error(f"Error connecting to MySQL server: {err}")
-        return None  # Explicitly return None for error handling
-
-
+    return mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='xxxx'
+    )
+    
+#create database if doesn't exist
 def create_database(connection):
-    """
-    Creates the database ALX_prodev if it does not exist.
-
-    Args:
-        connection: A MySQL connection object.
-    """
     cursor = connection.cursor()
     try:
-        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DATABASE_NAME}")
-        logging.info(f"Database '{DATABASE_NAME}' created or already exists.")
-    except mysql.connector.Error as err:
-        logging.error(f"Error creating database '{DATABASE_NAME}': {err}")
-        sys.exit(1)  # Exit on critical error
+        cursor.execute("CREATE DATABASE IF NOT EXISTS ALX_prodev")
+        print("Database 'ALX_prodev' checked/created")
     finally:
         cursor.close()
-
-
+#connects to the db
 def connect_to_prodev():
-    """
-    Connects to the ALX_prodev database in MySQL.  Assumes the database exists.
-
-    Returns:
-        mysql.connector.connection_cext.CMySQLConnection: A connection object on success, None on failure.
-    """
-    db_config_with_db = DB_CONFIG.copy()  # Create a copy to avoid modifying the original
-    db_config_with_db['database'] = DATABASE_NAME
-    try:
-        connection = mysql.connector.connect(**db_config_with_db)
-        logging.info(f"Successfully connected to the '{DATABASE_NAME}' database.")
-        return connection
-    except mysql.connector.Error as err:
-        logging.error(f"Error connecting to '{DATABASE_NAME}' database: {err}")
-        return None
-
-
+    return mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='xxxx',
+        database='ALX_prodev'
+    )
+#creates table
 def create_table(connection):
-    """
-    Creates the table user_data if it does not exist with the required fields.
-
-    Args:
-        connection: A MySQL connection object.
-    """
     cursor = connection.cursor()
-    try:
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-                user_id VARCHAR(36) PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                age DECIMAL(10, 2) NOT NULL,
-                INDEX (user_id)
-            )
-        """)  # Corrected syntax for index
-        logging.info(f"Table '{TABLE_NAME}' created or already exists.")
-        connection.commit()  # Commit the table creation
-    except mysql.connector.Error as err:
-        logging.error(f"Error creating table '{TABLE_NAME}': {err}")
-        sys.exit(1)  # Exit on critical error
-    finally:
-        cursor.close()
-
-
+    create_stmt = """
+    CREATE TABLE IF NOT EXISTS user_data (
+        user_id CHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        age DECIMAL NOT NULL,
+        INDEX (user_id)
+    );
+    """
+    cursor.execute(create_stmt)
+    print("Table 'user_data' checked/created.")
+    cursor.close()
+#insert multiple rows
 def insert_data(connection, data):
-    """
-    Inserts data into the database if it does not exist.  Handles potential duplicates.
-
-    Args:
-        connection: A MySQL connection object.
-        data: A list of tuples, where each tuple represents a row of data.
-    """
     cursor = connection.cursor()
-    insert_query = f"""
-        INSERT INTO {TABLE_NAME} (user_id, name, email, age)
-        VALUES (%s, %s, %s, %s)
+    insert_stmt = """
+    INSERT INTO user_data (user_id, name, email, age)
+    VALUES (%s, %s, %s, %s)
+    ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email), age=VALUES(age)
     """
-    try:
-        cursor.executemany(insert_query, data)  # Use executemany for efficiency
-        connection.commit()
-        logging.info(f"{cursor.rowcount} rows inserted into '{TABLE_NAME}'.")
-    except mysql.connector.Error as err:
-        logging.error(f"Error inserting data into '{TABLE_NAME}': {err}")
-        connection.rollback() # Rollback on error.
-        sys.exit(1)
-    finally:
-        cursor.close()
+    cursor.executemany(insert_stmt, data)
+    connection.commit()
+    print(f"{cursor.rowcount} rows inserted")
+    cursor.close()
 
+#load the csv
+def load_CSV(file_path):
+    with open(file_path, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            yield(str(uuid.uuid4()), row['name'], row['email'], float(row['age']))
 
+#generator to stream data from the csv
+def stream_user_data(connection):
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM user_data")
+    for row in cursor:
+        yield row
+    cursor.close()
 
-def load_csv_data(filename):
+#main function to run all
+def main():
+    conn = connect_db()
+    create_database(conn)
+    conn.close()
+    
+    prodev_conn = connect_to_prodev()
+    create_table(prodev_conn)
+    
+    data_gen = load_CSV("user_data.csv")
+    insert_data(prodev_conn, list(data_gen))
+    
+    print("Streaming data")
+    for row in stream_user_data(prodev_conn):
+        print(row)
+    prodev_conn.close()
+    
+#main run
+if __name__ == "__main__":
+    main()
