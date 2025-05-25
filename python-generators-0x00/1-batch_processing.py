@@ -2,11 +2,11 @@ import mysql.connector
 
 DB_CONFIG = {
     'user': 'root',
-    'password': 'x',
+    'password': 'tukcu123',
     'host': 'localhost',
     'database': 'ALX_prodev',    
 }
-TABLE_NAME = 'user_data'
+
 
 def stream_users_in_batches(batch_size):
     connection = mysql.connector.connect(**DB_CONFIG)
@@ -14,7 +14,7 @@ def stream_users_in_batches(batch_size):
     
     offset = 0
     while True:
-        cursor.execute(f"SELECT user_id, name, age FROM {TABLE_NAME} LIMIT %s OFFSET %s", (batch_size, offset))
+        cursor.execute(f"SELECT user_id, name, age FROM user_data LIMIT %s OFFSET %s", (batch_size, offset))
         rows = cursor.fetchall()
         if not rows:
             break
