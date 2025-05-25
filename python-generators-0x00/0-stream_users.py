@@ -5,11 +5,11 @@ import sys
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Database connection details (Move to a config file or environment variables for production)
+# Database connection details 
 DB_CONFIG = {
-    'user': 'myuser',  # Replace with your MySQL username
-    'password': 'mypassword',  # Replace with your MySQL password
-    'host': 'localhost',  # Or your MySQL host
+    'user': 'root',  
+    'password': 'x',  
+    'host': 'localhost',  
     'database': 'ALX_prodev',
 }
 TABLE_NAME = 'user_data'
