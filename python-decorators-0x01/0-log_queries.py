@@ -17,21 +17,17 @@ def log_queries():
         return wrapper
     return decorator
 
-@log_queries()
-def run_query(query, params=None):
-    conn = sqlite3.connect(":memory:")
+@log_queries
+def fetch_all_users(query):
+    conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE user (id INTEGER PRIMARY KEY, name TEXT)")
-    if params:
-        cursor.execute(query, params)
-    else:
-        cursor.execute(query)
-    result = cursor.fetchall()
+    cursor.execute(query)
+    results = cursor.fetchall()
     conn.close()
-    return result
+    return results
 
-# Example call
-run_query("SELECT * FROM user")
+#### fetch users while logging the query
+users = fetch_all_users(query="SELECT * FROM users")
 
 
             
